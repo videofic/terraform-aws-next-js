@@ -89,6 +89,12 @@ variable "vpc_security_group_ids" {
   default     = []
 }
 
+variable "lambda_layers" {
+  description = "Additional layers for the lambda function"
+  type        = list(string)
+  default     = []
+}
+
 #########################
 # Cloudfront Distribution
 #########################

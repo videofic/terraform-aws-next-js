@@ -10,13 +10,13 @@ locals {
   config_file_version = lookup(local.config_file, "version", 0)
   static_routes_json  = lookup(local.config_file, "staticRoutes", [])
   routes_json         = lookup(local.config_file, "routes", [])
-  lambda_routes_json = flatten([
-    for integration_key, integration in local.lambdas : [
-      lookup(integration, "route", "/")
-    ]
+  lambda_routes_json  = flatten([
+  for integration_key, integration in local.lambdas : [
+    lookup(integration, "route", "/")
+  ]
   ])
-  prerenders_json = lookup(local.config_file, "prerenders", {})
-  proxy_config_json = jsonencode({
+  prerenders_json     = lookup(local.config_file, "prerenders", {})
+  proxy_config_json   = jsonencode({
     routes       = local.routes_json
     staticRoutes = local.static_routes_json
     lambdaRoutes = local.lambda_routes_json
@@ -72,6 +72,7 @@ resource "aws_lambda_function" "this" {
 
   filename         = "${local.config_dir}/${lookup(each.value, "filename", "")}"
   source_code_hash = filebase64sha256("${local.config_dir}/${lookup(each.value, "filename", "")}")
+  layers           = lookup(each.value, "layers", var.lambda_layers)
 
   dynamic "environment" {
     for_each = length(var.lambda_environment_variables) > 0 ? [true] : []
@@ -109,19 +110,19 @@ resource "aws_lambda_permission" "current_version_triggers" {
 #############
 
 locals {
-  integrations_keys = flatten([
-    for integration_key, integration in local.lambdas : [
-      "ANY ${lookup(integration, "route", "")}/{proxy+}"
-    ]
+  integrations_keys  = flatten([
+  for integration_key, integration in local.lambdas : [
+    "ANY ${lookup(integration, "route", "")}/{proxy+}"
+  ]
   ])
   integration_values = flatten([
-    for integration_key, integration in local.lambdas : {
-      lambda_arn             = aws_lambda_function.this[integration_key].arn
-      payload_format_version = "2.0"
-      timeout_milliseconds   = var.lambda_timeout * 1000
-    }
+  for integration_key, integration in local.lambdas : {
+    lambda_arn             = aws_lambda_function.this[integration_key].arn
+    payload_format_version = "2.0"
+    timeout_milliseconds   = var.lambda_timeout * 1000
+  }
   ])
-  integrations = zipmap(local.integrations_keys, local.integration_values)
+  integrations       = zipmap(local.integrations_keys, local.integration_values)
 }
 
 module "api_gateway" {
@@ -246,9 +247,9 @@ data "aws_cloudfront_cache_policy" "managed_caching_optimized" {
 locals {
   # Default headers that should be forwarded to the origins
   cloudfront_origin_default_headers = ["x-nextjs-page"]
-  cloudfront_origin_headers = sort(concat(
-    local.cloudfront_origin_default_headers,
-    var.cloudfront_origin_headers
+  cloudfront_origin_headers         = sort(concat(
+  local.cloudfront_origin_default_headers,
+  var.cloudfront_origin_headers
   ))
 }
 
@@ -340,15 +341,15 @@ locals {
   # using filtering: https://www.terraform.io/docs/language/expressions/for.html#filtering-elements
   _cloudfront_origins = {
     static_content = merge(local.cloudfront_origin_static_content, { create = true })
-    next_image = merge(
-      var.create_image_optimization ? module.next_image[0].cloudfront_origin_image_optimizer : null, {
-        create = var.create_image_optimization
+    next_image     = merge(
+    var.create_image_optimization ? module.next_image[0].cloudfront_origin_image_optimizer : null, {
+      create = var.create_image_optimization
     })
   }
 
   cloudfront_origins = {
-    for key, origin in local._cloudfront_origins : key => origin
-    if origin.create
+  for key, origin in local._cloudfront_origins : key => origin
+  if origin.create
   }
 
   # CloudFront behaviors
@@ -397,14 +398,14 @@ locals {
   # using filtering: https://www.terraform.io/docs/language/expressions/for.html#filtering-elements
   _cloudfront_ordered_cache_behaviors = {
     static_assets = merge(local.cloudfront_ordered_cache_behavior_static_assets, { create = true })
-    next_image = merge(local.cloudfront_ordered_cache_behavior_next_image, {
+    next_image    = merge(local.cloudfront_ordered_cache_behavior_next_image, {
       create = var.create_image_optimization
     })
   }
 
   cloudfront_ordered_cache_behaviors = {
-    for key, behavior in local._cloudfront_ordered_cache_behaviors : key => behavior
-    if behavior.create
+  for key, behavior in local._cloudfront_ordered_cache_behaviors : key => behavior
+  if behavior.create
   }
 
   cloudfront_custom_error_response = {
